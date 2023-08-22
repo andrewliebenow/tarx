@@ -184,13 +184,7 @@ fn strip_extension<'a>(file_name: &'a str, extension: &str) -> &'a str {
 fn make_new_directory(file_name_without_extension: &str) -> path::PathBuf {
     let path_buf = env::current_dir().expect("Could not get current directory");
 
-    let new_directory_path_buf = {
-        let mut pa = path_buf.clone();
-
-        pa.push(file_name_without_extension);
-
-        pa
-    };
+    let new_directory_path_buf = path_buf.join(file_name_without_extension);
 
     fs::create_dir(&new_directory_path_buf).expect("Could not create new directory");
 
