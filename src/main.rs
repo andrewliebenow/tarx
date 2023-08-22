@@ -1,4 +1,4 @@
-use std::{env, fs, path, process};
+use std::{env, fs, io, path, process};
 
 use clap::Parser;
 
@@ -10,6 +10,10 @@ struct TarxArgs {
     #[arg(long = "password", short = 'p')]
     password: Option<String>,
 
+    /// Interactively enter the password of the encrypted archive file to be extracted
+    #[arg(long = "type-password", short = 't')]
+    type_password: bool,
+
     /// Path of the archive file to be extracted
     #[arg(index = 1)]
     archive_file_path: String,
@@ -19,17 +23,32 @@ const DOT_RAR: &str = ".rar";
 const DOT_SEVEN_Z: &str = ".7z";
 const DOT_TAR_BZ_TWO: &str = ".tar.bz2";
 const DOT_TAR_GZ: &str = ".tar.gz";
-const DOT_TAR_XZ: &str = ".tar.xz";
 const DOT_TAR: &str = ".tar";
 const DOT_ZIP: &str = ".zip";
 
+enum FileType {
+    Rar,
+    SevenZ,
+    Tar,
+    TarBzTwo,
+    TarGz,
+    Zip,
+}
+
 fn main() {
-    let tarx_args = TarxArgs::parse();
+    let TarxArgs {
+        archive_file_path,
+        password,
+        type_password,
+    } = TarxArgs::parse();
 
-    let archive_file_path = &tarx_args.archive_file_path;
-    let password = &tarx_args.password;
+    let password_is_some = (&password).is_some();
 
-    let path = path::Path::new(archive_file_path);
+    if password_is_some && type_password {
+        panic!("\"--password\" and \"--type-password\" cannot be used at the same time");
+    }
+
+    let path = path::Path::new(&archive_file_path);
 
     let path_buf = fs::canonicalize(path).expect("Could not canonicalize archive file path");
 
@@ -45,11 +64,76 @@ fn main() {
 
     let file_name_str_ascii_lower_case = file_name_str.to_ascii_lowercase();
 
-    match file_name_str_ascii_lower_case {
-        st if st.ends_with(DOT_SEVEN_Z) => {
-            let new_directory = get_new_directory(file_name_str, DOT_SEVEN_Z);
+    let file_name_str_ascii_lower_case_before_period_stripped = file_name_str_ascii_lower_case
+        .chars()
+        .skip_while(|ch| match ch {
+            '.' => false,
+            _ => true,
+        })
+        .collect::<String>();
 
-            if let Some(str) = password {
+    if (&file_name_str_ascii_lower_case_before_period_stripped).is_empty() {
+        panic!("Only files with extensions are supported");
+    }
+
+    let (extension, file_type) = match &file_name_str_ascii_lower_case_before_period_stripped {
+        st if st.ends_with(DOT_RAR) => (DOT_RAR, FileType::Rar),
+        st if st.ends_with(DOT_SEVEN_Z) => (DOT_SEVEN_Z, FileType::SevenZ),
+        st if st.ends_with(DOT_TAR_BZ_TWO) => (DOT_TAR_BZ_TWO, FileType::TarBzTwo),
+        st if st.ends_with(DOT_TAR_GZ) => (DOT_TAR_GZ, FileType::TarGz),
+        st if st.ends_with(DOT_TAR) => (DOT_TAR, FileType::Tar),
+        st if st.ends_with(DOT_ZIP) => (DOT_ZIP, FileType::Zip),
+        _ => {
+            panic!("Unrecognized file extension");
+        }
+    };
+
+    let password_to_use = if password_is_some || type_password {
+        match &file_type {
+            FileType::Rar | FileType::SevenZ => {
+                if type_password {
+                    println!("Password:");
+
+                    let mut read_line = String::new();
+
+                    io::stdin()
+                        .read_line(&mut read_line)
+                        .expect("Could not read line from stdin");
+
+                    Some(read_line)
+                } else {
+                    password
+                }
+            }
+            _ => {
+                panic!( "Encryption is only supported for .7z and .rar files. Remove the \"--password\"/\"-p\" or \"--type-password\"/\"-t\" option.");
+            }
+        }
+    } else {
+        None
+    };
+
+    let new_directory = get_new_directory(&file_name_str, &extension);
+
+    match &file_type {
+        FileType::Rar => {
+            let mut command = process::Command::new("xt");
+
+            command.arg("-output").arg(new_directory);
+
+            if let Some(str) = &password_to_use {
+                command.arg("-password").arg(str);
+            }
+
+            command
+                .arg(path_buf)
+                .stderr(process::Stdio::inherit())
+                .stdout(process::Stdio::inherit())
+                .output()
+                .expect("Invocation of \"xt\" failed");
+        }
+        FileType::SevenZ => {
+            if let Some(str) = &password_to_use {
                 sevenz_rust::decompress_file_with_password(
                     path_buf,
                     new_directory,
@@ -61,47 +145,17 @@ fn main() {
                     .expect("7z extraction failed");
             }
         }
-        st if st.ends_with(DOT_RAR) => {
-            let new_directory = get_new_directory(file_name_str, DOT_RAR);
-
-            if let Some(str) = password {
-                process::Command::new("unar")
-                    .arg("-no-directory")
-                    .arg("-output-directory")
-                    .arg(new_directory)
-                    .arg("-password")
-                    .arg(str)
-                    .arg(path_buf)
-                    .stderr(process::Stdio::inherit())
-                    .stdout(process::Stdio::inherit())
-                    .output()
-                    .expect("Invocation of \"unar\" failed");
-            } else {
-                process::Command::new("xt")
-                    .arg("-output")
-                    .arg(new_directory)
-                    .arg(path_buf)
-                    .stderr(process::Stdio::inherit())
-                    .stdout(process::Stdio::inherit())
-                    .output()
-                    .expect("Invocation of \"xt\" failed");
-            }
+        FileType::TarBzTwo | FileType::TarGz | FileType::Tar => {
+            process::Command::new("xt")
+                .arg("-output")
+                .arg(new_directory)
+                .arg(path_buf)
+                .stderr(process::Stdio::inherit())
+                .stdout(process::Stdio::inherit())
+                .output()
+                .expect("Invocation of \"xt\" failed");
         }
-        st if st.ends_with(DOT_TAR_BZ_TWO) => {
-            handle_tar(password, &path_buf, file_name_str, DOT_TAR_BZ_TWO)
-        }
-        st if st.ends_with(DOT_TAR_GZ) => {
-            handle_tar(password, &path_buf, file_name_str, DOT_TAR_GZ)
-        }
-        st if st.ends_with(DOT_TAR_XZ) => {
-            unimplemented!();
-        }
-        st if st.ends_with(DOT_TAR) => handle_tar(password, &path_buf, file_name_str, DOT_TAR),
-        st if st.ends_with(DOT_ZIP) => {
-            panic_if_password_provided(password, DOT_ZIP);
-
-            let new_directory = get_new_directory(file_name_str, DOT_ZIP);
-
+        FileType::Zip => {
             process::Command::new("ripunzip")
                 .arg("--output-directory")
                 .arg(new_directory)
@@ -112,39 +166,7 @@ fn main() {
                 .output()
                 .expect("Invocation of \"ripunzip\" failed");
         }
-        _ => {
-            panic!("Unrecognized file extension");
-        }
     }
-}
-
-fn panic_if_password_provided(password: &Option<String>, extension: &str) {
-    if let Some(_) = password {
-        panic!(
-            "{} files do not support encryption. Remove the \"--password\" or \"-p\" option.",
-            extension
-        );
-    }
-}
-
-fn handle_tar(
-    password: &Option<String>,
-    path_buf: &path::PathBuf,
-    file_name_str: &str,
-    extension: &str,
-) {
-    panic_if_password_provided(password, extension);
-
-    let new_directory = get_new_directory(file_name_str, extension);
-
-    process::Command::new("xt")
-        .arg("-output")
-        .arg(new_directory)
-        .arg(path_buf)
-        .stderr(process::Stdio::inherit())
-        .stdout(process::Stdio::inherit())
-        .output()
-        .expect("Invocation of \"xt\" failed");
 }
 
 fn get_new_directory(file_name: &str, extension: &str) -> path::PathBuf {
