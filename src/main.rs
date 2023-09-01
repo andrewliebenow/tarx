@@ -1,3 +1,6 @@
+#![deny(clippy::all)]
+#![warn(clippy::pedantic)]
+
 use std::{env, fs, io, path, process};
 
 use clap::Parser;
@@ -35,6 +38,7 @@ enum FileType {
     Zip,
 }
 
+#[allow(clippy::too_many_lines)]
 fn main() {
     let TarxArgs {
         archive_file_path,
@@ -42,19 +46,21 @@ fn main() {
         type_password,
     } = TarxArgs::parse();
 
-    let password_is_some = (&password).is_some();
+    let password_is_some = password.is_some();
 
-    if password_is_some && type_password {
-        panic!("\"--password\" and \"--type-password\" cannot be used at the same time");
-    }
+    assert!(
+        !(password_is_some && type_password),
+        "\"--password\" and \"--type-password\" cannot be used at the same time"
+    );
 
     let path = path::Path::new(&archive_file_path);
 
     let path_buf = fs::canonicalize(path).expect("Could not canonicalize archive file path");
 
-    if path_buf.is_dir() {
-        panic!("\"archive_file_path points\" to a directory, but it needs to point to a file");
-    }
+    assert!(
+        !path_buf.is_dir(),
+        "\"archive_file_path points\" to a directory, but it needs to point to a file"
+    );
 
     let file_name_os_str = path_buf.file_name().expect("Could not get file name");
 
@@ -66,15 +72,13 @@ fn main() {
 
     let file_name_str_ascii_lower_case_before_period_stripped = file_name_str_ascii_lower_case
         .chars()
-        .skip_while(|ch| match ch {
-            '.' => false,
-            _ => true,
-        })
+        .skip_while(|ch| !matches!(ch, '.'))
         .collect::<String>();
 
-    if (&file_name_str_ascii_lower_case_before_period_stripped).is_empty() {
-        panic!("Only files with extensions are supported");
-    }
+    assert!(
+        !file_name_str_ascii_lower_case_before_period_stripped.is_empty(),
+        "Only files with extensions are supported"
+    );
 
     let (extension, file_type) = match &file_name_str_ascii_lower_case_before_period_stripped {
         st if st.ends_with(DOT_RAR) => (DOT_RAR, FileType::Rar),
@@ -113,7 +117,7 @@ fn main() {
         None
     };
 
-    let new_directory = get_new_directory(&file_name_str, &extension);
+    let new_directory = get_new_directory(file_name_str, extension);
 
     match &file_type {
         FileType::Rar => {
@@ -170,9 +174,9 @@ fn main() {
 }
 
 fn get_new_directory(file_name: &str, extension: &str) -> path::PathBuf {
-    let file_name_without_extension = strip_extension(&file_name, &extension);
+    let file_name_without_extension = strip_extension(file_name, extension);
 
-    make_new_directory(&file_name_without_extension)
+    make_new_directory(file_name_without_extension)
 }
 
 fn strip_extension<'a>(file_name: &'a str, extension: &str) -> &'a str {
