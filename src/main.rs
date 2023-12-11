@@ -161,9 +161,9 @@ fn main() {
         }
         FileType::Zip => {
             process::Command::new("ripunzip")
+                .arg("unzip-file")
                 .arg("--output-directory")
                 .arg(new_directory)
-                .arg("file")
                 .arg(path_buf)
                 .stderr(process::Stdio::inherit())
                 .stdout(process::Stdio::inherit())
