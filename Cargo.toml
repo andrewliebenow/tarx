@@ -1,8 +1,66 @@
-[package]
-name = "tarx"
-version = "0.1.0"
-edition = "2021"
+[build-dependencies]
+anyhow = {default-features = false, features = ["std"], version = "=1.0.87"}
+bindgen = {default-features = false, version = "=0.70.1"}
+tracing = {default-features = false, version = "=0.1.40"}
+tracing-subscriber = {default-features = false, features = [
+  "ansi",
+  "env-filter",
+  "fmt",
+  "std",
+  "tracing-log"
+], version = "=0.3.18"}
 
 [dependencies]
-clap = { version = "4.3.21", features = ["derive"] }
-sevenz-rust = { version = "0.5.3", features = ["aes256", "compress", "bzip2"] }
+anyhow = {default-features = false, features = ["std"], version = "=1.0.87"}
+clap = {default-features = false, features = [
+  "color",
+  "derive",
+  "help",
+  "std",
+  "suggestions",
+  "usage"
+], version = "=4.5.17"}
+dlmalloc = {default-features = false, features = [
+  "global"
+], optional = true, version = "=0.2.6"}
+flate2 = {default-features = false, features = [
+  "rust_backend"
+], version = "=1.0.33"}
+hex = {default-features = false, features = ["std"], version = "=0.4.3"}
+lzma-rs = {default-features = false, version = "=0.3.0"}
+nameof = {default-features = false, version = "=1.2.2"}
+sevenz-rust = {default-features = false, features = [
+  "aes256",
+  "compress"
+], version = "=0.6.1"}
+tar = {default-features = false, version = "=0.4.41"}
+tracing = {default-features = false, version = "=0.1.40"}
+tracing-subscriber = {default-features = false, features = [
+  "ansi",
+  "env-filter",
+  "fmt",
+  "std",
+  "tracing-log"
+], version = "=0.3.18"}
+zip = {default-features = false, features = [
+  "aes-crypto",
+  "deflate",
+  "deflate64",
+  "lzma"
+], version = "=2.2.0"}
+
+[features]
+default = ["dlmalloc", "foreign"]
+dlmalloc = ["dep:dlmalloc"]
+foreign = []
+
+[package]
+edition = "2021"
+license = "MIT"
+name = "tarx"
+version = "0.1.0"
+
+[profile.release]
+codegen-units = 1
+lto = true
+strip = true
