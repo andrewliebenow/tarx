@@ -35,7 +35,7 @@ struct TarxArgs {
     type_password: bool,
 
     /// Path of the archive file to be extracted
-    #[arg(index = 1)]
+    #[arg(index = 1_usize)]
     archive_file_path: String,
 }
 

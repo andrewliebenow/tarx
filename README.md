@@ -18,14 +18,14 @@
 
 ## Installation
 
-```shell
+```Shell
 # TODO Publish to crates.io
 cargo install --git https://github.com/andrewliebenow/tarx
 ```
 
 Decompression of .rar and .tar.bz2 files is provided via FFI to Go code. This requires the `foreign` feature to be enabled (which it is by default). The Go FFI will not work with musl until https://github.com/golang/go/issues/13492 is resolved. In musl environments, disable the `foreign` feature with `--no-default-features`:
 
-```shell
+```Shell
 cargo install --git https://github.com/andrewliebenow/tarx --no-default-features
 ```
 
@@ -33,8 +33,8 @@ By default, `tarx` uses the allocator provided by the `dlmalloc` crate instead o
 
 ## Usage
 
-```shell
-tarx --help
+```Shell
+❯ tarx --help
 Extract a .7z, .rar, .tar, .tar.bz2, .tar.gz, .tar.xz, or .zip file to a new directory
 
 Usage: tarx [OPTIONS] <ARCHIVE_FILE_PATH>

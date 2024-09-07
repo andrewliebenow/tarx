@@ -1,5 +1,8 @@
 [build-dependencies]
-anyhow = {default-features = false, features = ["std"], version = "=1.0.87"}
+anyhow = {default-features = false, features = [
+  "backtrace",
+  "std"
+], version = "=1.0.87"}
 bindgen = {default-features = false, version = "=0.70.1"}
 tracing = {default-features = false, version = "=0.1.40"}
 tracing-subscriber = {default-features = false, features = [
@@ -62,5 +65,5 @@ version = "0.1.0"
 
 [profile.release]
 codegen-units = 1
-lto = true
-strip = true
+lto = "fat"
+strip = "symbols"
