@@ -40,14 +40,16 @@ import (
 const failureCode C.uchar = C.FAILURE_CODE_DEFINE
 const successCode C.uchar = C.SUCCESS_CODE_DEFINE
 
+const unexpectedNilEncounteredErrorMessage string = "Unexpected nil encountered"
+
 func main() {}
 
 //export ConvertRarToTar
 func ConvertRarToTar(dataPointerAndLength C.struct_pointer_and_length, passwordPointerAndLength C.struct_pointer_and_length) C.struct_convert_rar_to_tar_return_type {
-	dataByteArray := PointerAndLengthToByteArray(dataPointerAndLength)
-	passwordByteArray := PointerAndLengthToByteArray(passwordPointerAndLength)
+	dataUintEightArray := PointerAndLengthToUintEightArray(dataPointerAndLength)
+	passwordUintEightArray := PointerAndLengthToUintEightArray(passwordPointerAndLength)
 
-	by, er := ConvertRarToTarInner(dataByteArray, passwordByteArray)
+	ui, er := ConvertRarToTarInner(dataUintEightArray, passwordUintEightArray)
 
 	if er != nil {
 		erString := fmt.Sprint(er)
@@ -55,109 +57,121 @@ func ConvertRarToTar(dataPointerAndLength C.struct_pointer_and_length, passwordP
 		return C.struct_convert_rar_to_tar_return_type{
 			a_status_code:   failureCode,
 			b_error_message: StringToToPointerAndLength(erString),
-			c_data:          EmptyByteArrayToPointerAndLength(),
+			c_data:          EmptyUintEightArrayToPointerAndLength(),
 		}
 	}
 
-	return C.struct_convert_rar_to_tar_return_type{
-		a_status_code:   successCode,
-		b_error_message: EmptyByteArrayToPointerAndLength(),
-		c_data:          ByteArrayToPointerAndLength(by),
+	if ui == nil {
+		return C.struct_convert_rar_to_tar_return_type{
+			a_status_code:   failureCode,
+			b_error_message: StringToToPointerAndLength(unexpectedNilEncounteredErrorMessage),
+			c_data:          EmptyUintEightArrayToPointerAndLength(),
+		}
+	} else {
+		return C.struct_convert_rar_to_tar_return_type{
+			a_status_code:   successCode,
+			b_error_message: EmptyUintEightArrayToPointerAndLength(),
+			c_data:          UintEightArrayToPointerAndLength(ui),
+		}
 	}
 }
 
 // Referenced https://medium.com/@s.vvardenfell/creating-in-memory-tar-archive-in-go-golang-83b7ca309602
-func ConvertRarToTarInner(dataByteArray []byte, passwordByteArray []byte) ([]byte, error) {
-	bu := bytes.NewBuffer(dataByteArray)
-	st := string(passwordByteArray)
+func ConvertRarToTarInner(dataUintEightArray []uint8, passwordUintEightArray []uint8) ([]uint8, error) {
+	// TODO
+	// How much memory should be preallocated?
+	in := len(dataUintEightArray) * 4
 
-	re, er := rardecode.NewReader(bu, st)
+	bu := bytes.NewBuffer(make([]uint8, 0, in))
 
-	if er != nil {
-		return nil, er
-	}
+	{
+		st := string(passwordUintEightArray)
 
-	buf := bytes.Buffer{}
+		re, er := rardecode.NewReader(bytes.NewBuffer(dataUintEightArray), st)
 
-	wr := io.Writer(&buf)
+		if er != nil {
+			return nil, er
+		}
 
-	wri := tar.NewWriter(wr)
+		{
+			wr := tar.NewWriter(bu)
 
-	for {
-		fi, err := re.Next()
+			for {
+				fi, err := re.Next()
 
-		if err != nil {
-			if err != io.EOF {
-				return nil, err
+				if err != nil {
+					if err != io.EOF {
+						return nil, err
+					}
+
+					break
+				}
+
+				unPackedSize := fi.UnPackedSize
+
+				// TODO
+				// Is this the right amount of memory to preallocate?
+				buf := bytes.NewBuffer(make([]uint8, 0, unPackedSize))
+
+				intS, erro := io.Copy(buf, re)
+
+				if erro != nil {
+					return nil, erro
+				}
+
+				name := fi.Name
+
+				if intS != unPackedSize {
+					fmt.Printf("WARNING: Mismatch between number of actually read bytes (%d) and size reported in header (%d) when processing file \"%s\"", intS, unPackedSize, name)
+				}
+
+				fil := fi.Mode()
+
+				var typeflag uint8
+
+				if fil.IsDir() {
+					typeflag = tar.TypeDir
+				} else if fil.IsRegular() {
+					typeflag = tar.TypeReg
+				} else {
+					return nil, errors.New("unexpected file type encountered")
+				}
+
+				he := tar.Header{
+					Mode:     int64(fil),
+					ModTime:  fi.ModificationTime,
+					Name:     name,
+					Size:     intS,
+					Typeflag: typeflag,
+				}
+
+				errorR := wr.WriteHeader(&he)
+
+				if errorR != nil {
+					return nil, errorR
+				}
+
+				_, errorRr := io.Copy(wr, buf)
+
+				if errorRr != nil {
+					return nil, errorRr
+				}
 			}
 
-			break
-		}
-
-		unPackedSize := fi.UnPackedSize
-
-		// TODO
-		byteA := make([]byte, 0, unPackedSize)
-
-		buff := bytes.NewBuffer(byteA)
-
-		in, erro := io.Copy(buff, re)
-
-		if erro != nil {
-			return nil, erro
-		}
-
-		name := fi.Name
-
-		if in != unPackedSize {
-			fmt.Printf("WARNING: Mismatch between number of actually read bytes (%d) and size reported in header (%d) when processing file \"%s\"", in, unPackedSize, name)
-		}
-
-		mo := fi.Mode()
-
-		var typeflag byte
-
-		if mo.IsDir() {
-			typeflag = tar.TypeDir
-		} else if mo.IsRegular() {
-			typeflag = tar.TypeReg
-		} else {
-			return nil, errors.New("unexpected file type encountered")
-		}
-
-		he := tar.Header{
-			Mode:     int64(mo),
-			ModTime:  fi.ModificationTime,
-			Name:     name,
-			Size:     in,
-			Typeflag: typeflag,
-		}
-
-		errorR := wri.WriteHeader(&he)
-
-		if errorR != nil {
-			return nil, errorR
-		}
-
-		_, errorRr := io.Copy(wri, buff)
-
-		if errorRr != nil {
-			return nil, errorRr
+			wr.Close()
 		}
 	}
 
-	wri.Close()
+	ui := bu.Bytes()
 
-	byteAr := buf.Bytes()
-
-	return byteAr, nil
+	return ui, nil
 }
 
 //export DecompressBzipTwo
 func DecompressBzipTwo(dataPointerAndLength C.struct_pointer_and_length) C.struct_decompress_bzip_two_return_type {
-	dataByteArray := PointerAndLengthToByteArray(dataPointerAndLength)
+	dataUintEightArray := PointerAndLengthToUintEightArray(dataPointerAndLength)
 
-	by, er := DecompressBzipTwoInner(dataByteArray)
+	ui, er := DecompressBzipTwoInner(dataUintEightArray)
 
 	if er != nil {
 		erString := fmt.Sprint(er)
@@ -165,60 +179,67 @@ func DecompressBzipTwo(dataPointerAndLength C.struct_pointer_and_length) C.struc
 		return C.struct_decompress_bzip_two_return_type{
 			a_status_code:   failureCode,
 			b_error_message: StringToToPointerAndLength(erString),
-			c_data:          EmptyByteArrayToPointerAndLength(),
+			c_data:          EmptyUintEightArrayToPointerAndLength(),
 		}
 	}
 
-	return C.struct_decompress_bzip_two_return_type{
-		a_status_code:   successCode,
-		b_error_message: EmptyByteArrayToPointerAndLength(),
-		c_data:          ByteArrayToPointerAndLength(by),
+	if ui == nil {
+		return C.struct_decompress_bzip_two_return_type{
+			a_status_code:   failureCode,
+			b_error_message: StringToToPointerAndLength(unexpectedNilEncounteredErrorMessage),
+			c_data:          EmptyUintEightArrayToPointerAndLength(),
+		}
+	} else {
+		return C.struct_decompress_bzip_two_return_type{
+			a_status_code:   successCode,
+			b_error_message: EmptyUintEightArrayToPointerAndLength(),
+			c_data:          UintEightArrayToPointerAndLength(ui),
+		}
 	}
 }
 
-func DecompressBzipTwoInner(dataByteArray []byte) ([]byte, error) {
-	bu := bytes.NewBuffer(dataByteArray)
-
-	re := bzip2.NewReader(bu)
-
+func DecompressBzipTwoInner(dataUintEightArray []uint8) ([]uint8, error) {
 	// TODO
-	buf := bytes.NewBuffer(make([]byte, 0, len(dataByteArray)*10))
+	// How much memory should be preallocated?
+	in := len(dataUintEightArray) * 4
 
-	_, er := io.Copy(buf, re)
+	bu := bytes.NewBuffer(make([]uint8, 0, in))
 
-	if er != nil {
-		return nil, er
+	{
+		re := bzip2.NewReader(bytes.NewBuffer(dataUintEightArray))
+
+		_, er := io.Copy(bu, re)
+
+		if er != nil {
+			return nil, er
+		}
 	}
 
-	byt := buf.Bytes()
+	ui := bu.Bytes()
 
-	return byt, nil
+	return ui, nil
 }
 
 //export FreePointerAndLength
-func FreePointerAndLength(pointerAndLength C.struct_pointer_and_length) {
-	C.free(pointerAndLength.a_pointer)
+func FreePointerAndLength(targetPointerAndLength C.struct_pointer_and_length) {
+	C.free(targetPointerAndLength.a_pointer)
 }
 
-func ByteArrayToPointerAndLength(by []byte) C.struct_pointer_and_length {
-	return C.struct_pointer_and_length{
-		a_pointer: C.CBytes(by),
-		b_length:  C.int(len(by)),
-	}
+func EmptyUintEightArrayToPointerAndLength() C.struct_pointer_and_length {
+	return UintEightArrayToPointerAndLength([]uint8{})
 }
 
-func EmptyByteArrayToPointerAndLength() C.struct_pointer_and_length {
-	by := []byte{}
-
-	return ByteArrayToPointerAndLength(by)
-}
-
-func PointerAndLengthToByteArray(pointerAndLength C.struct_pointer_and_length) []byte {
-	return C.GoBytes(pointerAndLength.a_pointer, pointerAndLength.b_length)
+func PointerAndLengthToUintEightArray(po C.struct_pointer_and_length) []uint8 {
+	return C.GoBytes(po.a_pointer, po.b_length)
 }
 
 func StringToToPointerAndLength(st string) C.struct_pointer_and_length {
-	by := []byte(st)
+	return UintEightArrayToPointerAndLength([]uint8(st))
+}
 
-	return ByteArrayToPointerAndLength(by)
+func UintEightArrayToPointerAndLength(ui []uint8) C.struct_pointer_and_length {
+	return C.struct_pointer_and_length{
+		a_pointer: C.CBytes(ui),
+		b_length:  C.int(len(ui)),
+	}
 }
