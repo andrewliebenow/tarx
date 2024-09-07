@@ -2,21 +2,23 @@
 package main
 
 // #include <stdlib.h>
-// #define FAILURE_CODE_DEFINE 2
-// #define SUCCESS_CODE_DEFINE 1
+//
 // enum {
-// 	FAILURE_CODE = FAILURE_CODE_DEFINE,
-// 	SUCCESS_CODE = SUCCESS_CODE_DEFINE
+// 	FAILURE_CODE = 2,
+// 	SUCCESS_CODE = 1
 // };
+//
 // typedef struct pointer_and_length {
 // 	void* a_pointer;
 // 	int b_length;
 // } pointer_and_length;
+//
 // typedef struct decompress_bzip_two_return_type {
 // 	unsigned char a_status_code;
 // 	pointer_and_length b_error_message;
 // 	pointer_and_length c_data;
 // } decompress_bzip_two_return_type;
+//
 // typedef struct convert_rar_to_tar_return_type {
 // 	unsigned char a_status_code;
 // 	pointer_and_length b_error_message;
@@ -37,15 +39,19 @@ import (
 	"github.com/nwaples/rardecode"
 )
 
-const failureCode C.uchar = C.FAILURE_CODE_DEFINE
-const successCode C.uchar = C.SUCCESS_CODE_DEFINE
+type ConvertRarToTarReturnType = C.struct_convert_rar_to_tar_return_type
+type DecompressBzipTwoReturnType = C.struct_decompress_bzip_two_return_type
+type PointerAndLength = C.struct_pointer_and_length
+
+const failureCode C.uchar = C.FAILURE_CODE
+const successCode C.uchar = C.SUCCESS_CODE
 
 const unexpectedNilEncounteredErrorMessage string = "Unexpected nil encountered"
 
 func main() {}
 
 //export ConvertRarToTar
-func ConvertRarToTar(dataPointerAndLength C.struct_pointer_and_length, passwordPointerAndLength C.struct_pointer_and_length) C.struct_convert_rar_to_tar_return_type {
+func ConvertRarToTar(dataPointerAndLength PointerAndLength, passwordPointerAndLength PointerAndLength) ConvertRarToTarReturnType {
 	dataUintEightArray := PointerAndLengthToUintEightArray(dataPointerAndLength)
 	passwordUintEightArray := PointerAndLengthToUintEightArray(passwordPointerAndLength)
 
@@ -54,7 +60,7 @@ func ConvertRarToTar(dataPointerAndLength C.struct_pointer_and_length, passwordP
 	if er != nil {
 		erString := fmt.Sprint(er)
 
-		return C.struct_convert_rar_to_tar_return_type{
+		return ConvertRarToTarReturnType{
 			a_status_code:   failureCode,
 			b_error_message: StringToToPointerAndLength(erString),
 			c_data:          EmptyUintEightArrayToPointerAndLength(),
@@ -62,13 +68,13 @@ func ConvertRarToTar(dataPointerAndLength C.struct_pointer_and_length, passwordP
 	}
 
 	if ui == nil {
-		return C.struct_convert_rar_to_tar_return_type{
+		return ConvertRarToTarReturnType{
 			a_status_code:   failureCode,
 			b_error_message: StringToToPointerAndLength(unexpectedNilEncounteredErrorMessage),
 			c_data:          EmptyUintEightArrayToPointerAndLength(),
 		}
 	} else {
-		return C.struct_convert_rar_to_tar_return_type{
+		return ConvertRarToTarReturnType{
 			a_status_code:   successCode,
 			b_error_message: EmptyUintEightArrayToPointerAndLength(),
 			c_data:          UintEightArrayToPointerAndLength(ui),
@@ -168,7 +174,7 @@ func ConvertRarToTarInner(dataUintEightArray []uint8, passwordUintEightArray []u
 }
 
 //export DecompressBzipTwo
-func DecompressBzipTwo(dataPointerAndLength C.struct_pointer_and_length) C.struct_decompress_bzip_two_return_type {
+func DecompressBzipTwo(dataPointerAndLength PointerAndLength) DecompressBzipTwoReturnType {
 	dataUintEightArray := PointerAndLengthToUintEightArray(dataPointerAndLength)
 
 	ui, er := DecompressBzipTwoInner(dataUintEightArray)
@@ -176,7 +182,7 @@ func DecompressBzipTwo(dataPointerAndLength C.struct_pointer_and_length) C.struc
 	if er != nil {
 		erString := fmt.Sprint(er)
 
-		return C.struct_decompress_bzip_two_return_type{
+		return DecompressBzipTwoReturnType{
 			a_status_code:   failureCode,
 			b_error_message: StringToToPointerAndLength(erString),
 			c_data:          EmptyUintEightArrayToPointerAndLength(),
@@ -184,13 +190,13 @@ func DecompressBzipTwo(dataPointerAndLength C.struct_pointer_and_length) C.struc
 	}
 
 	if ui == nil {
-		return C.struct_decompress_bzip_two_return_type{
+		return DecompressBzipTwoReturnType{
 			a_status_code:   failureCode,
 			b_error_message: StringToToPointerAndLength(unexpectedNilEncounteredErrorMessage),
 			c_data:          EmptyUintEightArrayToPointerAndLength(),
 		}
 	} else {
-		return C.struct_decompress_bzip_two_return_type{
+		return DecompressBzipTwoReturnType{
 			a_status_code:   successCode,
 			b_error_message: EmptyUintEightArrayToPointerAndLength(),
 			c_data:          UintEightArrayToPointerAndLength(ui),
@@ -221,24 +227,24 @@ func DecompressBzipTwoInner(dataUintEightArray []uint8) ([]uint8, error) {
 }
 
 //export FreePointerAndLength
-func FreePointerAndLength(targetPointerAndLength C.struct_pointer_and_length) {
+func FreePointerAndLength(targetPointerAndLength PointerAndLength) {
 	C.free(targetPointerAndLength.a_pointer)
 }
 
-func EmptyUintEightArrayToPointerAndLength() C.struct_pointer_and_length {
+func EmptyUintEightArrayToPointerAndLength() PointerAndLength {
 	return UintEightArrayToPointerAndLength([]uint8{})
 }
 
-func PointerAndLengthToUintEightArray(po C.struct_pointer_and_length) []uint8 {
+func PointerAndLengthToUintEightArray(po PointerAndLength) []uint8 {
 	return C.GoBytes(po.a_pointer, po.b_length)
 }
 
-func StringToToPointerAndLength(st string) C.struct_pointer_and_length {
+func StringToToPointerAndLength(st string) PointerAndLength {
 	return UintEightArrayToPointerAndLength([]uint8(st))
 }
 
-func UintEightArrayToPointerAndLength(ui []uint8) C.struct_pointer_and_length {
-	return C.struct_pointer_and_length{
+func UintEightArrayToPointerAndLength(ui []uint8) PointerAndLength {
+	return PointerAndLength{
 		a_pointer: C.CBytes(ui),
 		b_length:  C.int(len(ui)),
 	}

@@ -78,7 +78,6 @@ fn start() -> anyhow::Result<()> {
             ))
             .generate()?;
 
-        // Write the bindings to the $OUT_DIR/bindings.rs file.
         bindings.write_to_file(format!("{out_dir}/{library_name_with_lib_prefix}.rs"))?;
 
         {
