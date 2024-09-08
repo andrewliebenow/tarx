@@ -8,22 +8,22 @@ package main
 // 	SUCCESS_CODE = 1
 // };
 //
-// typedef struct pointer_and_length {
+// struct pointer_and_length {
 // 	void* a_pointer;
 // 	int b_length;
-// } pointer_and_length;
+// };
 //
-// typedef struct decompress_bzip_two_return_type {
+// struct decompress_bzip_two_return_type {
 // 	unsigned char a_status_code;
-// 	pointer_and_length b_error_message;
-// 	pointer_and_length c_data;
-// } decompress_bzip_two_return_type;
+// 	struct pointer_and_length b_error_message;
+// 	struct pointer_and_length c_data;
+// };
 //
-// typedef struct convert_rar_to_tar_return_type {
+// struct convert_rar_to_tar_return_type {
 // 	unsigned char a_status_code;
-// 	pointer_and_length b_error_message;
-// 	pointer_and_length c_data;
-// } convert_rar_to_tar_return_type;
+// 	struct pointer_and_length b_error_message;
+// 	struct pointer_and_length c_data;
+// };
 import (
 	"C"
 )
