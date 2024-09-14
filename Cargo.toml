@@ -2,7 +2,7 @@
 anyhow = {default-features = false, features = [
   "backtrace",
   "std"
-], version = "=1.0.87"}
+], version = "=1.0.88"}
 bindgen = {default-features = false, version = "=0.70.1"}
 tracing = {default-features = false, version = "=0.1.40"}
 tracing-subscriber = {default-features = false, features = [
@@ -14,7 +14,10 @@ tracing-subscriber = {default-features = false, features = [
 ], version = "=0.3.18"}
 
 [dependencies]
-anyhow = {default-features = false, features = ["std"], version = "=1.0.87"}
+anyhow = {default-features = false, features = [
+  "backtrace",
+  "std"
+], version = "=1.0.88"}
 clap = {default-features = false, features = [
   "color",
   "derive",
