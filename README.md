@@ -23,7 +23,7 @@
 cargo install --git https://github.com/andrewliebenow/tarx
 ```
 
-Decompression of .rar and .tar.bz2 files is provided via FFI to Go code. This requires the `foreign` feature to be enabled (which it is by default). The Go FFI will not work with musl until https://github.com/golang/go/issues/13492 is resolved. In musl environments, disable the `foreign` feature with `--no-default-features`:
+Decompression of `.rar`, `.tar.bz2`, and `.tar.zst` files is provided via FFI to Go code. This requires the `foreign` feature to be enabled (which it is by default). The Go FFI will not work with musl until https://github.com/golang/go/issues/13492 is resolved. In musl environments, disable the `foreign` feature with `--no-default-features`:
 
 ```Shell
 cargo install --git https://github.com/andrewliebenow/tarx --no-default-features
@@ -33,18 +33,19 @@ By default, `tarx` uses the allocator provided by the `dlmalloc` crate instead o
 
 ## Usage
 
-```Shell
+```
 ❯ tarx --help
-Extract a .7z, .rar, .tar, .tar.bz2, .tar.gz, .tar.xz, or .zip file to a new directory
+Extract a .7z, .rar, .tar, .tar.bz2, .tar.gz, .tar.xz, .tar.zst, or .zip file to a new directory
 
 Usage: tarx [OPTIONS] <ARCHIVE_FILE_PATH>
 
 Arguments:
-  <ARCHIVE_FILE_PATH>  Path of the archive file to be extracted
+  <ARCHIVE_FILE_PATH>  Path of the archive file to be processed
 
 Options:
-  -p, --password <PASSWORD>  Password of the encrypted archive file to be extracted
-  -t, --type-password        Interactively enter the password of the encrypted archive file to be extracted
+  -p, --password <PASSWORD>  Password of the encrypted archive file to be processed
+  -t, --type-password        Interactively enter the password of the encrypted archive file
+  -l, --list-files           List files instead of extracting them (not currently implemented for .7z and .zip files)
   -h, --help                 Print help
   -V, --version              Print version
 ```

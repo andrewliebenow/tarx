@@ -72,7 +72,7 @@ foreign = [
 absolute_paths = "warn"
 all = { level = "deny", priority = -1 }
 alloc_instead_of_core = "warn"
-allow_attributes = "warn"
+allow_attributes = "allow"
 allow_attributes_without_reason = "warn"
 arithmetic_side_effects = "warn"
 as_conversions = "warn"

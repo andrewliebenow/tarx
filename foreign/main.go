@@ -15,13 +15,19 @@ struct pointer_and_length {
 	int b_length;
 };
 
+struct convert_rar_to_tar_return_type {
+	unsigned char a_status_code;
+	struct pointer_and_length b_error_message;
+	struct pointer_and_length c_data;
+};
+
 struct decompress_bzip_two_return_type {
 	unsigned char a_status_code;
 	struct pointer_and_length b_error_message;
 	struct pointer_and_length c_data;
 };
 
-struct convert_rar_to_tar_return_type {
+struct decompress_zstd_return_type {
 	unsigned char a_status_code;
 	struct pointer_and_length b_error_message;
 	struct pointer_and_length c_data;
@@ -43,11 +49,13 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/klauspost/compress/zstd"
 	"github.com/nwaples/rardecode"
 )
 
 type ConvertRarToTarReturnType = C.struct_convert_rar_to_tar_return_type
 type DecompressBzipTwoReturnType = C.struct_decompress_bzip_two_return_type
+type DecompressZstdReturnType = C.struct_decompress_zstd_return_type
 type PointerAndLength = C.struct_pointer_and_length
 
 const failureCode C.uchar = C.FAILURE_CODE
@@ -226,6 +234,67 @@ func DecompressBzipTwoInner(dataUintEightArray []uint8) ([]uint8, error) {
 		if er != nil {
 			return nil, er
 		}
+	}
+
+	ui := bu.Bytes()
+
+	return ui, nil
+}
+
+//export DecompressZstd
+func DecompressZstd(dataPointerAndLength PointerAndLength) DecompressZstdReturnType {
+	dataUintEightArray := PointerAndLengthToUintEightArray(dataPointerAndLength)
+
+	ui, er := DecompressZstdInner(dataUintEightArray)
+
+	if er != nil {
+		erString := fmt.Sprint(er)
+
+		return DecompressZstdReturnType{
+			a_status_code:   failureCode,
+			b_error_message: StringToToPointerAndLength(erString),
+			c_data:          EmptyUintEightArrayToPointerAndLength(),
+		}
+	}
+
+	if ui == nil {
+		return DecompressZstdReturnType{
+			a_status_code:   failureCode,
+			b_error_message: StringToToPointerAndLength(unexpectedNilEncounteredErrorMessage),
+			c_data:          EmptyUintEightArrayToPointerAndLength(),
+		}
+	} else {
+		return DecompressZstdReturnType{
+			a_status_code:   successCode,
+			b_error_message: EmptyUintEightArrayToPointerAndLength(),
+			c_data:          UintEightArrayToPointerAndLength(ui),
+		}
+	}
+}
+
+func DecompressZstdInner(dataUintEightArray []uint8) ([]uint8, error) {
+	// TODO
+	// How much memory should be preallocated?
+	in := len(dataUintEightArray) * 4
+
+	bu := bytes.NewBuffer(make([]uint8, 0, in))
+
+	{
+		de, er := zstd.NewReader(bytes.NewBuffer(dataUintEightArray))
+
+		if er != nil {
+			return nil, er
+		}
+
+		_, err := io.Copy(bu, de)
+
+		if err != nil {
+			de.Close()
+
+			return nil, err
+		}
+
+		de.Close()
 	}
 
 	ui := bu.Bytes()

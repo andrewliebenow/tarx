@@ -19,7 +19,7 @@ use zip::{read::ZipFile, result::ZipError, ZipArchive};
 #[global_allocator]
 static GLOBAL_DLMALLOC: dlmalloc::GlobalDlmalloc = dlmalloc::GlobalDlmalloc;
 
-/// Extract a .7z, .rar, .tar, .tar.bz2, .tar.gz, .tar.xz, or .zip file to a new directory
+/// Extract a .7z, .rar, .tar, .tar.bz2, .tar.gz, .tar.xz, .tar.zst, or .zip file to a new directory
 #[derive(Parser)]
 #[command(author, version, about)]
 struct TarxArgs {
@@ -40,20 +40,26 @@ struct TarxArgs {
     archive_file_path: String,
 }
 
+// TODO
+// Duplication
 const RAR: &str = "rar";
 const SEVEN_Z: &str = "7z";
 const TAR_BZ_TWO: &str = "tar.bz2";
 const TAR_GZ: &str = "tar.gz";
 const TAR_XZ: &str = "tar.xz";
+const TAR_ZST: &str = "tar.zst";
 const TAR: &str = "tar";
 const TGZ: &str = "tgz";
 const ZIP: &str = "zip";
 
+// TODO
+// Duplication
 const DOT_RAR: &str = ".rar";
 const DOT_SEVEN_Z: &str = ".7z";
 const DOT_TAR_BZ_TWO: &str = ".tar.bz2";
 const DOT_TAR_GZ: &str = ".tar.gz";
 const DOT_TAR_XZ: &str = ".tar.xz";
+const DOT_TAR_ZST: &str = ".tar.zst";
 const DOT_TAR: &str = ".tar";
 const DOT_TGZ: &str = ".tgz";
 const DOT_ZIP: &str = ".zip";
@@ -65,10 +71,11 @@ enum FileType {
     TarBzTwo,
     TarGz,
     TarXz,
+    TarZst,
     Zip,
 }
 
-#[expect(clippy::too_many_lines, reason = "Unimportant")]
+#[allow(clippy::too_many_lines, reason = "Unimportant")]
 fn main() -> Result<(), i32> {
     // TODO
     env::set_var("RUST_BACKTRACE", "1");
@@ -136,6 +143,7 @@ fn start() -> anyhow::Result<()> {
         st if st.ends_with(TAR_BZ_TWO) => (DOT_TAR_BZ_TWO, FileType::TarBzTwo),
         st if st.ends_with(TAR_GZ) => (DOT_TAR_GZ, FileType::TarGz),
         st if st.ends_with(TAR_XZ) => (DOT_TAR_XZ, FileType::TarXz),
+        st if st.ends_with(TAR_ZST) => (DOT_TAR_ZST, FileType::TarZst),
         st if st.ends_with(TAR) => (DOT_TAR, FileType::Tar),
         st if st.ends_with(TGZ) => (DOT_TGZ, FileType::TarGz),
         st if st.ends_with(ZIP) => (DOT_ZIP, FileType::Zip),
@@ -201,7 +209,7 @@ fn start() -> anyhow::Result<()> {
                         "\"--password\"/\"-p\" and \"--type-password\"/\"-t\" cannot be used at the same time"
                     ),
             }
-        FileType::Tar | FileType::TarBzTwo | FileType::TarGz | FileType::TarXz => {
+        FileType::Tar | FileType::TarBzTwo | FileType::TarGz | FileType::TarXz | FileType::TarZst=> {
             match (password, type_password) {
                 // No password
                 (None, false) => None,
@@ -223,6 +231,8 @@ fn start() -> anyhow::Result<()> {
 
     let get_file = || File::open(path_buf_path);
 
+    // TODO
+    // Duplication between branches
     match file_type {
         FileType::Rar => {
             #[cfg(feature = "foreign")]
@@ -246,14 +256,14 @@ fn start() -> anyhow::Result<()> {
 
                     let new_directory = make_new_directory()?;
 
-                    archive.unpack(&new_directory)?;
+                    archive.unpack(new_directory.as_path())?;
                 }
             }
 
             #[cfg(not(feature = "foreign"))]
             {
                 anyhow::bail!(
-                    "Extracting .rar files requires Go to be installed and the \"foreign\" feature to be enabled"
+                    "Processing .rar files requires Go to be installed and the \"foreign\" feature to be enabled"
                 )
             }
         }
@@ -280,7 +290,7 @@ fn start() -> anyhow::Result<()> {
             } else {
                 let new_directory = make_new_directory()?;
 
-                archive.unpack(&new_directory)?;
+                archive.unpack(new_directory.as_path())?;
             }
         }
         FileType::TarBzTwo => {
@@ -312,7 +322,7 @@ fn start() -> anyhow::Result<()> {
             #[cfg(not(feature = "foreign"))]
             {
                 anyhow::bail!(
-                    "Extracting .tar.bz2 files requires Go to be installed and the \"foreign\" feature to be enabled"
+                    "Processing .tar.bz2 files requires Go to be installed and the \"foreign\" feature to be enabled"
                 )
             }
         }
@@ -327,7 +337,7 @@ fn start() -> anyhow::Result<()> {
             } else {
                 let new_directory = make_new_directory()?;
 
-                archive.unpack(&new_directory)?;
+                archive.unpack(new_directory.as_path())?;
             }
         }
         FileType::TarXz => {
@@ -354,7 +364,40 @@ fn start() -> anyhow::Result<()> {
             } else {
                 let new_directory = make_new_directory()?;
 
-                archive.unpack(&new_directory)?;
+                archive.unpack(new_directory.as_path())?;
+            }
+        }
+        FileType::TarZst => {
+            #[cfg(feature = "foreign")]
+            {
+                let mut vec = fs::read(path_buf_path)?;
+
+                let decompressed_box = foreign::decompress_zstd(&mut vec)?;
+
+                let cursor = Cursor::new(decompressed_box);
+
+                let mut archive = Archive::new(cursor);
+
+                if list_files {
+                    // TODO
+                    // Print FFI warning here, too
+                    list_archive(&mut archive)?;
+                } else {
+                    tracing::warn!(
+                        ".tar.zst extraction uses FFI to Go code, and this integration is naive and all in-memory. Extraction will fail if your system does not have enough free memory to store the .tar.zst file plus the decompressed .tar file."
+                    );
+
+                    let new_directory = make_new_directory()?;
+
+                    archive.unpack(new_directory.as_path())?;
+                }
+            }
+
+            #[cfg(not(feature = "foreign"))]
+            {
+                anyhow::bail!(
+                    "Processing .tar.zst files requires Go to be installed and the \"foreign\" feature to be enabled"
+                )
             }
         }
         FileType::Zip => {
@@ -461,7 +504,7 @@ fn make_new_directory(file_name_without_extension: &str) -> anyhow::Result<PathB
     Ok(new_directory_path_buf)
 }
 
-fn list_archive<T: Read>(archive: &mut Archive<T>) -> anyhow::Result<()> {
+fn list_archive<R: Read>(archive: &mut Archive<R>) -> anyhow::Result<()> {
     let entries = archive.entries()?;
 
     let mut stdout_lock = io::stdout().lock();

@@ -26,7 +26,7 @@ fn main() -> Result<(), i32> {
 
 // TODO
 // Only recompile foreign code when it changes
-#[expect(clippy::unnecessary_wraps, reason = "Conditional compilation")]
+#[allow(clippy::unnecessary_wraps, reason = "Conditional compilation")]
 fn start() -> anyhow::Result<()> {
     #[cfg(feature = "foreign")]
     {
