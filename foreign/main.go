@@ -1,32 +1,39 @@
 // Referenced https://blog.arranfrance.com/post/cgo-sqip-rust/ for Rust -> Go FFI information
 package main
 
-// #include <stdlib.h>
-//
-// enum {
-// 	FAILURE_CODE = 2,
-// 	SUCCESS_CODE = 1
-// };
-//
-// struct pointer_and_length {
-// 	void* a_pointer;
-// 	int b_length;
-// };
-//
-// struct decompress_bzip_two_return_type {
-// 	unsigned char a_status_code;
-// 	struct pointer_and_length b_error_message;
-// 	struct pointer_and_length c_data;
-// };
-//
-// struct convert_rar_to_tar_return_type {
-// 	unsigned char a_status_code;
-// 	struct pointer_and_length b_error_message;
-// 	struct pointer_and_length c_data;
-// };
+/*
+
+#include <stdlib.h>
+
+enum {
+	FAILURE_CODE = 2,
+	SUCCESS_CODE = 1
+};
+
+struct pointer_and_length {
+	void* a_pointer;
+	int b_length;
+};
+
+struct decompress_bzip_two_return_type {
+	unsigned char a_status_code;
+	struct pointer_and_length b_error_message;
+	struct pointer_and_length c_data;
+};
+
+struct convert_rar_to_tar_return_type {
+	unsigned char a_status_code;
+	struct pointer_and_length b_error_message;
+	struct pointer_and_length c_data;
+};
+
+*/
 import (
 	"C"
 )
+
+// The comment above the preceding import is not really a comment, it is used by cgo
+// See https://pkg.go.dev/cmd/cgo
 
 import (
 	"archive/tar"

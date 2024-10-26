@@ -1,8 +1,10 @@
 #![expect(
-    clippy::unreadable_literal,
-    dead_code,
+    clippy::all,
+    clippy::pedantic,
+    clippy::restriction,
     non_camel_case_types,
     non_upper_case_globals,
+    unused,
     reason = "FFI"
 )]
 

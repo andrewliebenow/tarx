@@ -1,15 +1,13 @@
 use std::env;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
+use tracing_subscriber::fmt;
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 fn main() -> Result<(), i32> {
     // TODO
     env::set_var("RUST_BACKTRACE", "1");
-    // TODO
-    env::set_var("RUST_LOG", "debug");
 
     tracing_subscriber::registry()
-        .with(EnvFilter::from_default_env())
-        .with(tracing_subscriber::fmt::layer().pretty())
+        .with(fmt::layer().pretty())
         .init();
 
     let result = start();
@@ -28,12 +26,14 @@ fn main() -> Result<(), i32> {
 
 // TODO
 // Only recompile foreign code when it changes
+#[expect(clippy::unnecessary_wraps, reason = "Conditional compilation")]
 fn start() -> anyhow::Result<()> {
     #[cfg(feature = "foreign")]
     {
         use std::{
             io::{self, Write},
             process::Command,
+            str,
         };
 
         const LIBRARY_NAME: &str = "foreign";
@@ -61,8 +61,8 @@ fn start() -> anyhow::Result<()> {
         let stderr = output.stderr;
         let stdout = output.stdout;
 
-        let stderr_str_result = std::str::from_utf8(&stderr);
-        let stdout_str_result = std::str::from_utf8(&stdout);
+        let stderr_str_result = str::from_utf8(&stderr);
+        let stdout_str_result = str::from_utf8(&stdout);
 
         tracing::info!(
             ?stderr_str_result,
