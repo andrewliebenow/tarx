@@ -67,7 +67,6 @@ dlmalloc = [
 foreign = [
 ]
 
-
 [lints.clippy]
 absolute_paths = "warn"
 all = { level = "deny", priority = -1 }
@@ -194,9 +193,13 @@ unused_must_use = "deny"
 unused_variables = "deny"
 
 [package]
+authors = [
+  "Andrew Liebenow <andrewliebenow@gmail.com>",
+]
 edition = "2021"
 license = "MIT"
 name = "tarx"
+rust-version = "1.82.0"
 version = "0.1.0"
 
 [profile.dev]

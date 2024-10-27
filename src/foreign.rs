@@ -1,6 +1,5 @@
 mod include_libforeign;
 
-use crate::foreign::include_libforeign::{FAILURE_CODE, SUCCESS_CODE};
 use foreign_calls::{
     raw_to_box, safe_convert_rar_to_tar, safe_decompress_bzip_two, safe_decompress_zstd,
     SafeConvertRarToTarWrapperResult, SafeDecompressBzipTwoResult, SafeDecompressZstdResult,
@@ -18,11 +17,11 @@ pub fn convert_rar_to_tar(input: &mut [u8], password: Option<String>) -> anyhow:
 
     let status_code = foreign_call_result.status_code;
 
-    let status_code_u_three_two = u32::from(status_code);
+    let status_code_u_three_two = i128::from(status_code);
 
-    if status_code_u_three_two == SUCCESS_CODE {
+    if status_code_u_three_two == platform::get_i_six_four_success_code() {
         Ok(data_box)
-    } else if status_code_u_three_two == FAILURE_CODE {
+    } else if status_code_u_three_two == platform::get_i_six_four_failure_code() {
         let error_message_str = str::from_utf8(&error_message_box)?;
 
         anyhow::bail!(
@@ -46,11 +45,11 @@ pub fn decompress_bzip_two(input: &mut [u8]) -> anyhow::Result<Box<[u8]>> {
 
     let status_code = foreign_call_result.status_code;
 
-    let status_code_u_three_two = u32::from(status_code);
+    let status_code_u_three_two = i128::from(status_code);
 
-    if status_code_u_three_two == SUCCESS_CODE {
+    if status_code_u_three_two == platform::get_i_six_four_success_code() {
         Ok(data_box)
-    } else if status_code_u_three_two == FAILURE_CODE {
+    } else if status_code_u_three_two == platform::get_i_six_four_failure_code() {
         let error_message_str = str::from_utf8(&error_message_box)?;
 
         anyhow::bail!(
@@ -74,11 +73,11 @@ pub fn decompress_zstd(input: &mut [u8]) -> anyhow::Result<Box<[u8]>> {
 
     let status_code = foreign_call_result.status_code;
 
-    let status_code_u_three_two = u32::from(status_code);
+    let status_code_u_three_two = i128::from(status_code);
 
-    if status_code_u_three_two == SUCCESS_CODE {
+    if status_code_u_three_two == platform::get_i_six_four_success_code() {
         Ok(data_box)
-    } else if status_code_u_three_two == FAILURE_CODE {
+    } else if status_code_u_three_two == platform::get_i_six_four_failure_code() {
         let error_message_str = str::from_utf8(&error_message_box)?;
 
         anyhow::bail!(
@@ -86,6 +85,21 @@ pub fn decompress_zstd(input: &mut [u8]) -> anyhow::Result<Box<[u8]>> {
         );
     } else {
         anyhow::bail!("Invalid foreign function status code {status_code_u_three_two} encountered");
+    }
+}
+
+mod platform {
+    use super::include_libforeign::{FAILURE_CODE, SUCCESS_CODE};
+
+    // The type of enums varies by platform, but i128 should be able to hold all of them
+    #[inline]
+    pub fn get_i_six_four_failure_code() -> i128 {
+        i128::from(FAILURE_CODE)
+    }
+
+    #[inline]
+    pub fn get_i_six_four_success_code() -> i128 {
+        i128::from(SUCCESS_CODE)
     }
 }
 

@@ -6,9 +6,8 @@ use clap::Parser;
 use flate2::read::GzDecoder;
 use std::{
     env,
-    fs::{self, File, OpenOptions, Permissions},
+    fs::{self, File, OpenOptions},
     io::{self, BufReader, Cursor, Read, Write},
-    os::unix::fs::MetadataExt,
     path::{Path, PathBuf},
 };
 use tar::Archive;
@@ -343,13 +342,25 @@ fn start() -> anyhow::Result<()> {
         FileType::TarXz => {
             let path_buf_file = get_file()?;
 
-            let size = path_buf_file.metadata()?.size();
+            let vec_capacity = {
+                #[cfg(unix)]
+                {
+                    use std::os::unix::fs::MetadataExt;
 
-            let size_usize = usize::try_from(size)?;
+                    let size = path_buf_file.metadata()?.size();
+
+                    usize::try_from(size)?
+                }
+
+                #[cfg(not(unix))]
+                {
+                    0_usize
+                }
+            };
 
             // TODO
             // Set capacity to some multiple of the file size
-            let mut vec = Vec::<u8>::with_capacity(size_usize);
+            let mut vec = Vec::<u8>::with_capacity(vec_capacity);
 
             let mut path_buf_file_buf_reader = BufReader::new(path_buf_file);
 
@@ -466,6 +477,7 @@ fn start() -> anyhow::Result<()> {
 
                 #[cfg(unix)]
                 {
+                    use std::fs::Permissions;
                     use std::os::unix::fs::PermissionsExt;
 
                     if let Some(ut) = zip_file.unix_mode() {

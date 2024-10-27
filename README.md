@@ -52,4 +52,10 @@ Options:
 
 ## License
 
-MIT License, see <a href="LICENSE">LICENSE</a> file
+Author: Andrew Liebenow
+
+Licensed under the MIT License, see <a href="./LICENSE">./LICENSE</a>.
+
+`tarx` depends on libraries written by other authors. See <a href="./Cargo.toml">./Cargo.toml</a> and <a href="./foreign/go.mod">./foreign/go.mod</a> for its direct (i.e. non-transitive) dependencies.
+
+Note that all dependencies of `tarx` (direct _and_ transitive) are permissively licensed (not copyleft).
