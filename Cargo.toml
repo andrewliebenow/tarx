@@ -2,21 +2,21 @@
 anyhow = { default-features = false, features = [
   "backtrace",
   "std",
-], version = "=1.0.91" }
-bindgen = { default-features = false, version = "=0.70.1" }
-tracing = { default-features = false, version = "=0.1.40" }
+], version = "=1.0.94" }
+bindgen = { default-features = false, version = "=0.71.1" }
+tracing = { default-features = false, version = "=0.1.41" }
 tracing-subscriber = { default-features = false, features = [
   "ansi",
   "fmt",
   "std",
   "tracing-log",
-], version = "=0.3.18" }
+], version = "=0.3.19" }
 
 [dependencies]
 anyhow = { default-features = false, features = [
   "backtrace",
   "std",
-], version = "=1.0.91" }
+], version = "=1.0.94" }
 clap = { default-features = false, features = [
   "color",
   "derive",
@@ -24,13 +24,13 @@ clap = { default-features = false, features = [
   "std",
   "suggestions",
   "usage",
-], version = "=4.5.20" }
+], version = "=4.5.23" }
 dlmalloc = { default-features = false, features = [
   "global",
 ], optional = true, version = "=0.2.7" }
 flate2 = { default-features = false, features = [
   "rust_backend",
-], version = "=1.0.34" }
+], version = "=1.0.35" }
 hex = { default-features = false, features = [
   "std",
 ], version = "=0.4.3" }
@@ -40,21 +40,21 @@ sevenz-rust = { default-features = false, features = [
   "aes256",
   "compress",
 ], version = "=0.6.1" }
-tar = { default-features = false, version = "=0.4.42" }
-tracing = { default-features = false, version = "=0.1.40" }
+tar = { default-features = false, version = "=0.4.43" }
+tracing = { default-features = false, version = "=0.1.41" }
 tracing-subscriber = { default-features = false, features = [
   "ansi",
   "env-filter",
   "fmt",
   "std",
   "tracing-log",
-], version = "=0.3.18" }
+], version = "=0.3.19" }
 zip = { default-features = false, features = [
   "aes-crypto",
   "deflate",
   "deflate64",
   "lzma",
-], version = "=2.2.0" }
+], version = "=2.2.1" }
 
 [features]
 default = [
