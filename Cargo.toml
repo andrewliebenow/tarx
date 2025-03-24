@@ -2,7 +2,7 @@
 anyhow = { default-features = false, features = [
   "backtrace",
   "std",
-], version = "=1.0.94" }
+], version = "=1.0.97" }
 bindgen = { default-features = false, version = "=0.71.1" }
 tracing = { default-features = false, version = "=0.1.41" }
 tracing-subscriber = { default-features = false, features = [
@@ -16,7 +16,7 @@ tracing-subscriber = { default-features = false, features = [
 anyhow = { default-features = false, features = [
   "backtrace",
   "std",
-], version = "=1.0.94" }
+], version = "=1.0.97" }
 clap = { default-features = false, features = [
   "color",
   "derive",
@@ -24,13 +24,13 @@ clap = { default-features = false, features = [
   "std",
   "suggestions",
   "usage",
-], version = "=4.5.23" }
+], version = "=4.5.32" }
 dlmalloc = { default-features = false, features = [
   "global",
-], optional = true, version = "=0.2.7" }
+], optional = true, version = "=0.2.8" }
 flate2 = { default-features = false, features = [
   "rust_backend",
-], version = "=1.0.35" }
+], version = "=1.1.0" }
 hex = { default-features = false, features = [
   "std",
 ], version = "=0.4.3" }
@@ -40,7 +40,7 @@ sevenz-rust = { default-features = false, features = [
   "aes256",
   "compress",
 ], version = "=0.6.1" }
-tar = { default-features = false, version = "=0.4.43" }
+tar = { default-features = false, version = "=0.4.44" }
 tracing = { default-features = false, version = "=0.1.41" }
 tracing-subscriber = { default-features = false, features = [
   "ansi",
@@ -54,7 +54,7 @@ zip = { default-features = false, features = [
   "deflate",
   "deflate64",
   "lzma",
-], version = "=2.2.1" }
+], version = "=2.5.0" }
 
 [features]
 default = [
