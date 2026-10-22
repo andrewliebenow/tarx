@@ -1,7 +1,7 @@
-module v2
+module foreign
 
-go 1.22.7
+go 1.26.7
 
-require github.com/klauspost/compress v1.18.0
-
-require github.com/nwaples/rardecode v1.1.3
+require (
+	github.com/nwaples/rardecode/v2 v2.4.5
+)

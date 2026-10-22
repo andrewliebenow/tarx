@@ -1,9 +1,6 @@
 mod include_libforeign;
 
-use foreign_calls::{
-    raw_to_box, safe_convert_rar_to_tar, safe_decompress_bzip_two, safe_decompress_zstd,
-    SafeConvertRarToTarWrapperResult, SafeDecompressBzipTwoResult, SafeDecompressZstdResult,
-};
+use foreign_calls::{raw_to_box, safe_convert_rar_to_tar, SafeConvertRarToTarWrapperResult};
 use std::str;
 
 pub fn convert_rar_to_tar(input: &mut [u8], password: Option<String>) -> anyhow::Result<Box<[u8]>> {
@@ -11,62 +8,6 @@ pub fn convert_rar_to_tar(input: &mut [u8], password: Option<String>) -> anyhow:
         data,
         foreign_call_result,
     } = safe_convert_rar_to_tar(input, password)?;
-
-    let data_box = raw_to_box(data)?;
-    let error_message_box = raw_to_box(foreign_call_result.error_message)?;
-
-    let status_code = foreign_call_result.status_code;
-
-    let status_code_u_three_two = i128::from(status_code);
-
-    if status_code_u_three_two == platform::get_i_six_four_success_code() {
-        Ok(data_box)
-    } else if status_code_u_three_two == platform::get_i_six_four_failure_code() {
-        let error_message_str = str::from_utf8(&error_message_box)?;
-
-        anyhow::bail!(
-            "Foreign function failed with status code {status_code_u_three_two}: \"{error_message_str}\""
-        );
-    } else {
-        anyhow::bail!("Invalid foreign function status code {status_code_u_three_two} encountered");
-    }
-}
-
-// TODO
-// Duplication
-pub fn decompress_bzip_two(input: &mut [u8]) -> anyhow::Result<Box<[u8]>> {
-    let SafeDecompressBzipTwoResult {
-        data,
-        foreign_call_result,
-    } = safe_decompress_bzip_two(input)?;
-
-    let data_box = raw_to_box(data)?;
-    let error_message_box = raw_to_box(foreign_call_result.error_message)?;
-
-    let status_code = foreign_call_result.status_code;
-
-    let status_code_u_three_two = i128::from(status_code);
-
-    if status_code_u_three_two == platform::get_i_six_four_success_code() {
-        Ok(data_box)
-    } else if status_code_u_three_two == platform::get_i_six_four_failure_code() {
-        let error_message_str = str::from_utf8(&error_message_box)?;
-
-        anyhow::bail!(
-            "Foreign function failed with status code {status_code_u_three_two}: \"{error_message_str}\""
-        );
-    } else {
-        anyhow::bail!("Invalid foreign function status code {status_code_u_three_two} encountered");
-    }
-}
-
-// TODO
-// Duplication
-pub fn decompress_zstd(input: &mut [u8]) -> anyhow::Result<Box<[u8]>> {
-    let SafeDecompressZstdResult {
-        data,
-        foreign_call_result,
-    } = safe_decompress_zstd(input)?;
 
     let data_box = raw_to_box(data)?;
     let error_message_box = raw_to_box(foreign_call_result.error_message)?;
@@ -104,24 +45,12 @@ mod platform {
 }
 
 mod foreign_calls {
-    use super::include_libforeign::{
-        self, ConvertRarToTar, DecompressBzipTwo, DecompressZstd, FreePointerAndLength,
-    };
+    use super::include_libforeign::{self, ConvertRarToTar, FreePointerAndLength};
     use std::{ffi::c_void, slice};
 
     type IncludeLibforeignPointerAndLength = include_libforeign::pointer_and_length;
 
     pub struct SafeConvertRarToTarWrapperResult {
-        pub foreign_call_result: ForeignCallResult,
-        pub data: ForeignAllocation,
-    }
-
-    pub struct SafeDecompressBzipTwoResult {
-        pub foreign_call_result: ForeignCallResult,
-        pub data: ForeignAllocation,
-    }
-
-    pub struct SafeDecompressZstdResult {
         pub foreign_call_result: ForeignCallResult,
         pub data: ForeignAllocation,
     }
@@ -178,42 +107,6 @@ mod foreign_calls {
         Ok(SafeConvertRarToTarWrapperResult {
             data: ForeignAllocation::new(convert_rar_to_tar_return_type.c_data),
             foreign_call_result,
-        })
-    }
-
-    pub fn safe_decompress_bzip_two(
-        input: &mut [u8],
-    ) -> anyhow::Result<SafeDecompressBzipTwoResult> {
-        let pointer_and_length = slice_to_raw(input)?;
-
-        // Safety: TODO, check with Miri
-        let decompress_bzip_two_return_type = unsafe { DecompressBzipTwo(pointer_and_length) };
-
-        let foreign_call_result = ForeignCallResult {
-            error_message: ForeignAllocation::new(decompress_bzip_two_return_type.b_error_message),
-            status_code: decompress_bzip_two_return_type.a_status_code,
-        };
-
-        Ok(SafeDecompressBzipTwoResult {
-            foreign_call_result,
-            data: ForeignAllocation::new(decompress_bzip_two_return_type.c_data),
-        })
-    }
-
-    pub fn safe_decompress_zstd(input: &mut [u8]) -> anyhow::Result<SafeDecompressZstdResult> {
-        let pointer_and_length = slice_to_raw(input)?;
-
-        // Safety: TODO, check with Miri
-        let decompress_zstd_return_type = unsafe { DecompressZstd(pointer_and_length) };
-
-        let foreign_call_result = ForeignCallResult {
-            error_message: ForeignAllocation::new(decompress_zstd_return_type.b_error_message),
-            status_code: decompress_zstd_return_type.a_status_code,
-        };
-
-        Ok(SafeDecompressZstdResult {
-            foreign_call_result,
-            data: ForeignAllocation::new(decompress_zstd_return_type.c_data),
         })
     }
 

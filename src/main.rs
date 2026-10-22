@@ -2,8 +2,11 @@
 mod foreign;
 
 use anyhow::Context;
+use bzip2::read::BzDecoder;
 use clap::Parser;
 use flate2::read::GzDecoder;
+use humansize::format_size;
+use lzma_rust2::XzReader;
 use std::{
     env,
     fs::{self, File, OpenOptions},
@@ -12,7 +15,8 @@ use std::{
 };
 use tar::Archive;
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt};
-use zip::{read::ZipFile, result::ZipError, ZipArchive};
+use zip::{read::ZipFile, result::ZipResult, ZipArchive};
+use zrip::FrameDecoder;
 
 #[cfg(feature = "dlmalloc")]
 #[global_allocator]
@@ -33,6 +37,10 @@ struct TarxArgs {
     /// List files instead of extracting them (not currently implemented for .7z and .zip files)
     #[arg(long = "list-files", short = 'l')]
     list_files: bool,
+
+    /// Print file size when listing files
+    #[arg(long = "verbose", short = 'v')]
+    verbose: bool,
 
     /// Path of the archive file to be processed
     #[arg(index = 1_usize)]
@@ -103,6 +111,7 @@ fn start() -> anyhow::Result<()> {
         list_files,
         password,
         type_password,
+        verbose,
     } = TarxArgs::parse();
 
     let path = Path::new(archive_file_path.as_str());
@@ -247,7 +256,7 @@ fn start() -> anyhow::Result<()> {
                 if list_files {
                     // TODO
                     // Print FFI warning here, too
-                    list_archive(&mut archive)?;
+                    list_archive(&mut archive, verbose)?;
                 } else {
                     tracing::warn!(
                         ".rar extraction uses FFI to Go code, and this integration is naive and all in-memory. Extraction will fail if your system does not have enough free memory to store the .rar file plus its decompressed contents."
@@ -285,7 +294,7 @@ fn start() -> anyhow::Result<()> {
             let mut archive = Archive::new(path_buf_file_buf_reader);
 
             if list_files {
-                list_archive(&mut archive)?;
+                list_archive(&mut archive, verbose)?;
             } else {
                 let new_directory = make_new_directory()?;
 
@@ -293,46 +302,27 @@ fn start() -> anyhow::Result<()> {
             }
         }
         FileType::TarBzTwo => {
-            #[cfg(feature = "foreign")]
-            {
-                let mut vec = fs::read(path_buf_path)?;
+            // `BzDecoder` already creates a `BufReader`
+            let bz_decoder = BzDecoder::new(get_file()?);
 
-                let decompressed_box = foreign::decompress_bzip_two(&mut vec)?;
+            let mut archive = Archive::new(bz_decoder);
 
-                let cursor = Cursor::new(decompressed_box);
+            if list_files {
+                list_archive(&mut archive, verbose)?;
+            } else {
+                let new_directory = make_new_directory()?;
 
-                let mut archive = Archive::new(cursor);
-
-                if list_files {
-                    // TODO
-                    // Print FFI warning here, too
-                    list_archive(&mut archive)?;
-                } else {
-                    tracing::warn!(
-                        ".tar.bz2 extraction uses FFI to Go code, and this integration is naive and all in-memory. Extraction will fail if your system does not have enough free memory to store the .tar.bz2 file plus the decompressed .tar file."
-                    );
-
-                    let new_directory = make_new_directory()?;
-
-                    archive.unpack(new_directory.as_path())?;
-                }
-            }
-
-            #[cfg(not(feature = "foreign"))]
-            {
-                anyhow::bail!(
-                    "Processing .tar.bz2 files requires Go to be installed and the \"foreign\" feature to be enabled"
-                )
+                archive.unpack(new_directory.as_path())?;
             }
         }
         FileType::TarGz => {
-            // `GzDecoder` does already creates a `BufReader`
+            // `GzDecoder` already creates a `BufReader`
             let gz_decoder = GzDecoder::new(get_file()?);
 
             let mut archive = Archive::new(gz_decoder);
 
             if list_files {
-                list_archive(&mut archive)?;
+                list_archive(&mut archive, verbose)?;
             } else {
                 let new_directory = make_new_directory()?;
 
@@ -340,38 +330,14 @@ fn start() -> anyhow::Result<()> {
             }
         }
         FileType::TarXz => {
-            let path_buf_file = get_file()?;
+            let path_buf_file_buf_reader = BufReader::new(get_file()?);
 
-            let vec_capacity = {
-                #[cfg(unix)]
-                {
-                    use std::os::unix::fs::MetadataExt;
+            let xz_reader = XzReader::new(path_buf_file_buf_reader, true);
 
-                    let size = path_buf_file.metadata()?.size();
-
-                    usize::try_from(size)?
-                }
-
-                #[cfg(not(unix))]
-                {
-                    0_usize
-                }
-            };
-
-            // TODO
-            // Set capacity to some multiple of the file size
-            let mut vec = Vec::<u8>::with_capacity(vec_capacity);
-
-            let mut path_buf_file_buf_reader = BufReader::new(path_buf_file);
-
-            lzma_rs::xz_decompress(&mut path_buf_file_buf_reader, &mut vec)?;
-
-            let cursor = Cursor::new(vec);
-
-            let mut archive = Archive::new(cursor);
+            let mut archive = Archive::new(xz_reader);
 
             if list_files {
-                list_archive(&mut archive)?;
+                list_archive(&mut archive, verbose)?;
             } else {
                 let new_directory = make_new_directory()?;
 
@@ -379,36 +345,18 @@ fn start() -> anyhow::Result<()> {
             }
         }
         FileType::TarZst => {
-            #[cfg(feature = "foreign")]
-            {
-                let mut vec = fs::read(path_buf_path)?;
+            let path_buf_file_buf_reader = BufReader::new(get_file()?);
 
-                let decompressed_box = foreign::decompress_zstd(&mut vec)?;
+            let frame_decoder = FrameDecoder::new(path_buf_file_buf_reader);
 
-                let cursor = Cursor::new(decompressed_box);
+            let mut archive = Archive::new(frame_decoder);
 
-                let mut archive = Archive::new(cursor);
+            if list_files {
+                list_archive(&mut archive, verbose)?;
+            } else {
+                let new_directory = make_new_directory()?;
 
-                if list_files {
-                    // TODO
-                    // Print FFI warning here, too
-                    list_archive(&mut archive)?;
-                } else {
-                    tracing::warn!(
-                        ".tar.zst extraction uses FFI to Go code, and this integration is naive and all in-memory. Extraction will fail if your system does not have enough free memory to store the .tar.zst file plus the decompressed .tar file."
-                    );
-
-                    let new_directory = make_new_directory()?;
-
-                    archive.unpack(new_directory.as_path())?;
-                }
-            }
-
-            #[cfg(not(feature = "foreign"))]
-            {
-                anyhow::bail!(
-                    "Processing .tar.zst files requires Go to be installed and the \"foreign\" feature to be enabled"
-                )
+                archive.unpack(new_directory.as_path())?;
             }
         }
         FileType::Zip => {
@@ -422,7 +370,7 @@ fn start() -> anyhow::Result<()> {
                 dyn for<'a> Fn(
                     &'a mut ZipArchive<BufReader<File>>,
                     usize,
-                ) -> Result<ZipFile<'a>, ZipError>,
+                ) -> ZipResult<ZipFile<'a, BufReader<File>>>,
             > = if let Some(st) = password_to_use {
                 let vec = st.into_bytes();
 
@@ -516,7 +464,7 @@ fn make_new_directory(file_name_without_extension: &str) -> anyhow::Result<PathB
     Ok(new_directory_path_buf)
 }
 
-fn list_archive<R: Read>(archive: &mut Archive<R>) -> anyhow::Result<()> {
+fn list_archive<R: Read>(archive: &mut Archive<R>, verbose: bool) -> anyhow::Result<()> {
     let entries = archive.entries()?;
 
     let mut stdout_lock = io::stdout().lock();
@@ -526,7 +474,21 @@ fn list_archive<R: Read>(archive: &mut Archive<R>) -> anyhow::Result<()> {
 
         let entry_path = entry.path()?;
 
-        writeln!(&mut stdout_lock, "{}", entry_path.display())?;
+        if verbose {
+            let entry_size = entry.size();
+
+            let format_size_string = format_size(entry_size, humansize::BINARY);
+
+            writeln!(
+                &mut stdout_lock,
+                "{} [{} bytes ≈ {}]",
+                entry_path.display(),
+                entry_size,
+                format_size_string
+            )?;
+        } else {
+            writeln!(&mut stdout_lock, "{}", entry_path.display())?;
+        }
     }
 
     Ok(())

@@ -23,7 +23,7 @@
 cargo install --git https://github.com/andrewliebenow/tarx
 ```
 
-Decompression of `.rar`, `.tar.bz2`, and `.tar.zst` files is provided via FFI to Go code. This requires the `foreign` feature to be enabled (which it is by default). The Go FFI will not work with musl until https://github.com/golang/go/issues/13492 is resolved. In musl environments, disable the `foreign` feature with `--no-default-features`:
+Decompression of `.rar` files is provided via FFI to Go code. This requires the `foreign` feature to be enabled (which it is by default). The Go FFI will not work with musl until https://github.com/golang/go/issues/13492 is resolved. In musl environments, disable the `foreign` feature with `--no-default-features`:
 
 ```Shell
 cargo install --git https://github.com/andrewliebenow/tarx --no-default-features
@@ -46,6 +46,7 @@ Options:
   -p, --password <PASSWORD>  Password of the encrypted archive file to be processed
   -t, --type-password        Interactively enter the password of the encrypted archive file
   -l, --list-files           List files instead of extracting them (not currently implemented for .7z and .zip files)
+  -v, --verbose              Print file size when listing files
   -h, --help                 Print help
   -V, --version              Print version
 ```

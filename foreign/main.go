@@ -21,18 +21,6 @@ struct convert_rar_to_tar_return_type {
 	struct pointer_and_length c_data;
 };
 
-struct decompress_bzip_two_return_type {
-	unsigned char a_status_code;
-	struct pointer_and_length b_error_message;
-	struct pointer_and_length c_data;
-};
-
-struct decompress_zstd_return_type {
-	unsigned char a_status_code;
-	struct pointer_and_length b_error_message;
-	struct pointer_and_length c_data;
-};
-
 */
 import (
 	"C"
@@ -44,17 +32,14 @@ import (
 import (
 	"archive/tar"
 	"bytes"
-	"compress/bzip2"
 	"errors"
 	"fmt"
 	"io"
 
-	"github.com/klauspost/compress/zstd"
-	"github.com/nwaples/rardecode"
+	"github.com/nwaples/rardecode/v2"
 )
 
 type ConvertRarToTarReturnType = C.struct_convert_rar_to_tar_return_type
-type DecompressBzipTwoReturnType = C.struct_decompress_bzip_two_return_type
 type DecompressZstdReturnType = C.struct_decompress_zstd_return_type
 type PointerAndLength = C.struct_pointer_and_length
 
@@ -108,7 +93,7 @@ func ConvertRarToTarInner(dataUintEightArray []uint8, passwordUintEightArray []u
 	{
 		st := string(passwordUintEightArray)
 
-		re, er := rardecode.NewReader(bytes.NewBuffer(dataUintEightArray), st)
+		re, er := rardecode.NewReader(bytes.NewBuffer(dataUintEightArray), rardecode.Password(st))
 
 		if er != nil {
 			return nil, er
@@ -181,120 +166,6 @@ func ConvertRarToTarInner(dataUintEightArray []uint8, passwordUintEightArray []u
 
 			wr.Close()
 		}
-	}
-
-	ui := bu.Bytes()
-
-	return ui, nil
-}
-
-//export DecompressBzipTwo
-func DecompressBzipTwo(dataPointerAndLength PointerAndLength) DecompressBzipTwoReturnType {
-	dataUintEightArray := PointerAndLengthToUintEightArray(dataPointerAndLength)
-
-	ui, er := DecompressBzipTwoInner(dataUintEightArray)
-
-	if er != nil {
-		erString := fmt.Sprint(er)
-
-		return DecompressBzipTwoReturnType{
-			a_status_code:   failureCode,
-			b_error_message: StringToToPointerAndLength(erString),
-			c_data:          EmptyUintEightArrayToPointerAndLength(),
-		}
-	}
-
-	if ui == nil {
-		return DecompressBzipTwoReturnType{
-			a_status_code:   failureCode,
-			b_error_message: StringToToPointerAndLength(unexpectedNilEncounteredErrorMessage),
-			c_data:          EmptyUintEightArrayToPointerAndLength(),
-		}
-	} else {
-		return DecompressBzipTwoReturnType{
-			a_status_code:   successCode,
-			b_error_message: EmptyUintEightArrayToPointerAndLength(),
-			c_data:          UintEightArrayToPointerAndLength(ui),
-		}
-	}
-}
-
-func DecompressBzipTwoInner(dataUintEightArray []uint8) ([]uint8, error) {
-	// TODO
-	// How much memory should be preallocated?
-	in := len(dataUintEightArray) * 4
-
-	bu := bytes.NewBuffer(make([]uint8, 0, in))
-
-	{
-		re := bzip2.NewReader(bytes.NewBuffer(dataUintEightArray))
-
-		_, er := io.Copy(bu, re)
-
-		if er != nil {
-			return nil, er
-		}
-	}
-
-	ui := bu.Bytes()
-
-	return ui, nil
-}
-
-//export DecompressZstd
-func DecompressZstd(dataPointerAndLength PointerAndLength) DecompressZstdReturnType {
-	dataUintEightArray := PointerAndLengthToUintEightArray(dataPointerAndLength)
-
-	ui, er := DecompressZstdInner(dataUintEightArray)
-
-	if er != nil {
-		erString := fmt.Sprint(er)
-
-		return DecompressZstdReturnType{
-			a_status_code:   failureCode,
-			b_error_message: StringToToPointerAndLength(erString),
-			c_data:          EmptyUintEightArrayToPointerAndLength(),
-		}
-	}
-
-	if ui == nil {
-		return DecompressZstdReturnType{
-			a_status_code:   failureCode,
-			b_error_message: StringToToPointerAndLength(unexpectedNilEncounteredErrorMessage),
-			c_data:          EmptyUintEightArrayToPointerAndLength(),
-		}
-	} else {
-		return DecompressZstdReturnType{
-			a_status_code:   successCode,
-			b_error_message: EmptyUintEightArrayToPointerAndLength(),
-			c_data:          UintEightArrayToPointerAndLength(ui),
-		}
-	}
-}
-
-func DecompressZstdInner(dataUintEightArray []uint8) ([]uint8, error) {
-	// TODO
-	// How much memory should be preallocated?
-	in := len(dataUintEightArray) * 4
-
-	bu := bytes.NewBuffer(make([]uint8, 0, in))
-
-	{
-		de, er := zstd.NewReader(bytes.NewBuffer(dataUintEightArray))
-
-		if er != nil {
-			return nil, er
-		}
-
-		_, err := io.Copy(bu, de)
-
-		if err != nil {
-			de.Close()
-
-			return nil, err
-		}
-
-		de.Close()
 	}
 
 	ui := bu.Bytes()
