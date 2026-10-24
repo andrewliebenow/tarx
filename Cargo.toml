@@ -61,7 +61,7 @@ zip = { default-features = false, features = [
   "deflate",
   "deflate64",
   "lzma",
-], version = "=9.0.5" }
+], version = "=9.1.0" }
 zrip = { default-features = false, features = [
   "alloc",
   "frame",
@@ -212,7 +212,7 @@ authors = [
 edition = "2021"
 license = "MIT"
 name = "tarx"
-rust-version = "1.82.0"
+rust-version = "1.89.0"
 version = "0.1.0"
 
 [profile.dev]

@@ -10,7 +10,7 @@ use lzma_rust2::XzReader;
 use std::{
     env,
     fs::{self, File, OpenOptions},
-    io::{self, BufReader, Cursor, Read, Write},
+    io::{self, BufReader, Read, Write},
     path::{Path, PathBuf},
 };
 use tar::Archive;
@@ -245,6 +245,9 @@ fn start() -> anyhow::Result<()> {
         FileType::Rar => {
             #[cfg(feature = "foreign")]
             {
+                // Fix build
+                use io::Cursor;
+
                 let mut vec = fs::read(path_buf_path)?;
 
                 let decompressed_box = foreign::convert_rar_to_tar(&mut vec, password_to_use)?;
