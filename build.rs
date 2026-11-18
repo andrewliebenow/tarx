@@ -4,7 +4,10 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 fn main() -> Result<(), i32> {
     // TODO
-    env::set_var("RUST_BACKTRACE", "1");
+    // SAFETY: TODO
+    unsafe {
+        env::set_var("RUST_BACKTRACE", "1");
+    }
 
     tracing_subscriber::registry()
         .with(fmt::layer().pretty())

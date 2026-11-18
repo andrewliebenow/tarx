@@ -15,7 +15,7 @@ use std::{
 };
 use tar::Archive;
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt};
-use zip::{read::ZipFile, result::ZipResult, ZipArchive};
+use zip::{ZipArchive, read::ZipFile, result::ZipResult};
 use zrip::FrameDecoder;
 
 #[cfg(feature = "dlmalloc")]
@@ -82,10 +82,12 @@ enum FileType {
     Zip,
 }
 
-#[allow(clippy::too_many_lines, reason = "Unimportant")]
 fn main() -> Result<(), i32> {
     // TODO
-    env::set_var("RUST_BACKTRACE", "1");
+    // SAFETY: TODO
+    unsafe {
+        env::set_var("RUST_BACKTRACE", "1");
+    }
 
     tracing_subscriber::registry()
         .with(fmt::layer().pretty())
@@ -161,63 +163,65 @@ fn start() -> anyhow::Result<()> {
     };
 
     let password_to_use = match file_type {
-        FileType::Rar | FileType::SevenZ | FileType::Zip =>
-            match (password, type_password) {
-                // No password
-                (None, false) => None,
-                // Typed password
-                (None, true) => {
-                    io
+        FileType::Rar | FileType::SevenZ | FileType::Zip => match (password, type_password) {
+            // No password
+            (None, false) => None,
+            // Typed password
+            (None, true) => {
+                io
                         ::stdout()
                         .write_all(
                             b"Password (note that the terminal will be cleared after a password is entered):\n"
                         )?;
 
-                    let mut read_line = String::with_capacity(256_usize);
+                let mut read_line = String::with_capacity(256_usize);
 
-                    io::stdin().read_line(&mut read_line)?;
+                io::stdin().read_line(&mut read_line)?;
 
-                    // Clear the terminal to hide the entered password
-                    // https://stackoverflow.com/questions/34837011/how-to-clear-the-terminal-screen-in-rust-after-a-new-line-is-printed/34837038#34837038
-                    io::stdout().write_all(&[27_u8, b'[', b'2', b'J'])?;
+                // Clear the terminal to hide the entered password
+                // https://stackoverflow.com/questions/34837011/how-to-clear-the-terminal-screen-in-rust-after-a-new-line-is-printed/34837038#34837038
+                io::stdout().write_all(&[27_u8, b'[', b'2', b'J'])?;
 
-                    let op = read_line.pop();
+                let op = read_line.pop();
 
-                    if op != Some('\n') {
-                        anyhow::bail!("Typed password input does not end with a newline character");
-                    }
-
-                    let opt = read_line.pop();
-
-                    if let Some(ch) = opt {
-                        if ch == '\r' {
-                            tracing::debug!(
-                                "Encountered and trimmed a carriage return character at the end of the typed password input. If the password you entered ends with a carriage return character, try using the \"--password\"/\"-p\" option instead."
-                            );
-                        } else {
-                            read_line.push(ch);
-                        }
-                    }
-
-                    for ch in read_line.chars() {
-                        if ch == '\n' || ch == '\r' {
-                            anyhow::bail!(
-                                "Typed password input contains a carriage return or newline character. Passwords containing these characters are not supported via the typed password input option. Try using the \"--password\"/\"-p\" option instead."
-                            );
-                        }
-                    }
-
-                    Some(read_line)
+                if op != Some('\n') {
+                    anyhow::bail!("Typed password input does not end with a newline character");
                 }
-                // Passed password
-                (Some(st), false) => Some(st),
-                // Invalid
-                (Some(_), true) =>
-                    anyhow::bail!(
-                        "\"--password\"/\"-p\" and \"--type-password\"/\"-t\" cannot be used at the same time"
-                    ),
+
+                let opt = read_line.pop();
+
+                if let Some(ch) = opt {
+                    if ch == '\r' {
+                        tracing::debug!(
+                            "Encountered and trimmed a carriage return character at the end of the typed password input. If the password you entered ends with a carriage return character, try using the \"--password\"/\"-p\" option instead."
+                        );
+                    } else {
+                        read_line.push(ch);
+                    }
+                }
+
+                for ch in read_line.chars() {
+                    if ch == '\n' || ch == '\r' {
+                        anyhow::bail!(
+                            "Typed password input contains a carriage return or newline character. Passwords containing these characters are not supported via the typed password input option. Try using the \"--password\"/\"-p\" option instead."
+                        );
+                    }
+                }
+
+                Some(read_line)
             }
-        FileType::Tar | FileType::TarBzTwo | FileType::TarGz | FileType::TarXz | FileType::TarZst=> {
+            // Passed password
+            (Some(st), false) => Some(st),
+            // Invalid
+            (Some(_), true) => anyhow::bail!(
+                "\"--password\"/\"-p\" and \"--type-password\"/\"-t\" cannot be used at the same time"
+            ),
+        },
+        FileType::Tar
+        | FileType::TarBzTwo
+        | FileType::TarGz
+        | FileType::TarXz
+        | FileType::TarZst => {
             match (password, type_password) {
                 // No password
                 (None, false) => None,
@@ -412,10 +416,10 @@ fn start() -> anyhow::Result<()> {
                 if zip_file.is_dir() {
                     fs::create_dir_all(destination_path)?;
                 } else {
-                    if let Some(pat) = destination_path.parent() {
-                        if !pat.exists() {
-                            fs::create_dir_all(pat)?;
-                        }
+                    if let Some(pat) = destination_path.parent()
+                        && !pat.exists()
+                    {
+                        fs::create_dir_all(pat)?;
                     }
 
                     let mut file = OpenOptions::new()

@@ -1,6 +1,6 @@
 mod include_libforeign;
 
-use foreign_calls::{raw_to_box, safe_convert_rar_to_tar, SafeConvertRarToTarWrapperResult};
+use foreign_calls::{SafeConvertRarToTarWrapperResult, raw_to_box, safe_convert_rar_to_tar};
 use std::str;
 
 pub fn convert_rar_to_tar(input: &mut [u8], password: Option<String>) -> anyhow::Result<Box<[u8]>> {
